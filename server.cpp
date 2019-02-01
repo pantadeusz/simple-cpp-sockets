@@ -24,16 +24,14 @@ int main(int argc, char **argv) {
   std::vector< std::future<void> > fut = accept_connections(
       [](int sockfd, std::string from_addr, std::string from_port) {
         std::cout << "Connection from " << from_addr << ":" << from_port << std::endl;
-        sleep(5);
       },
-      "localhost", (args.size() > 1) ? args[1] : "9921", 2,
+      "*", (args.size() > 1) ? args[1] : "9921", 2,
       [&listen_sockets](auto s) { listen_sockets.push_back(s); },
-      [](auto err) { std::cout << "Error binding: " << err << std::endl; });
+      [](auto err) { std::cout << "Error during server initialization: " << err << std::endl; });
   std::string waiting;
   std::cout << "Type some text and press enter to finish...: " << std::endl;
   std::cin >> waiting;
   for (auto &s: listen_sockets) {
-    std::cout << "closing connection..." << s << std::endl;
     ::close(s);
   }
   return 0;
