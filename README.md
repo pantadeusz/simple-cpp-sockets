@@ -1,17 +1,6 @@
 # simple-cpp-sockets
+
 verry simple c++ sockets wrapper example
-
-## Installing testing dependencies
-
-Just install catch2 from git source. This example works for sure with:
-
-```bash
-wget https://codeload.github.com/catchorg/Catch2/tar.gz/v2.5.0 -O v2.5.0.tar.gz
-tar -xvf v2.5.0.tar.gz
-cd Catch2-2.5.0
-cmake -Bbuild -H. -DBUILD_TESTING=OFF
-sudo cmake --build build --target install
-```
 
 ## Compilation
 
@@ -20,3 +9,10 @@ cmake -Bbuild -H.
 cmake --build build
 ```
 
+Examples can be compiled in this way:
+
+```bash
+export LD_LIBRARY_PATH=./build
+g++ client.cpp -Lbuild -lsimplecppsockets -Iinclude -pthread -o client
+g++ server.cpp -Lbuild -lsimplecppsockets -Iinclude -pthread -o server
+```

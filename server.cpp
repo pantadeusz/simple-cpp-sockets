@@ -20,8 +20,7 @@
 using namespace tp;
 int main(int argc, char **argv) {
   std::vector<char *> args(argv, argv + argc);
-  std::vector < int > listen_sockets;
-  std::vector< std::future<void> > fut = accept_connections(
+  std::vector< int > listen_sockets = accept_connections(
       [](int sockfd, std::string from_addr, std::string from_port) {
         std::cout << "Connection from " << from_addr << ":" << from_port << std::endl;
       },

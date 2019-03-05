@@ -34,17 +34,9 @@ namespace tp {
 //  });
 //}
 
-/**
- * @brief create listening socket
- *
- * @param on_connection callback that receive bind-ed socket
- * @param error callback on error
- * @param server_name the address on which we should listen
- * @param port_name port on which we listen
- * @param max_queue the number of waiting connections
- */
 
-std::vector<std::future<void>>
+
+std::vector<int>
 accept_connections(std::function<void(int, std::string, std::string)> on_connection,
                    const char *server_name, const char *port_name,
                    const int max_queue,
@@ -89,10 +81,11 @@ accept_connections(std::function<void(int, std::string, std::string)> on_connect
   }
   freeaddrinfo(result);
   if (listening_sockets.size()) {
-    std::vector<std::future<void>> ret;
+    std::vector<int> ret;
     for (auto sockfd : listening_sockets) {
       on_listen_socket(sockfd);
-      ret.push_back(std::async(std::launch::async, [=]() {
+      ret.push_back(sockfd);
+      auto t = std::thread( [=]() {
         int flags = fcntl(sockfd, F_GETFL, 0);
         fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
         bool do_the_job = true;
@@ -130,7 +123,8 @@ accept_connections(std::function<void(int, std::string, std::string)> on_connect
         for (auto &t : tasks_running ) {
           t.get();
         }
-      }));
+      });
+      t.detach();
     }
     return ret;
 
@@ -138,6 +132,40 @@ accept_connections(std::function<void(int, std::string, std::string)> on_connect
     error("error binding adress");
     return {};
   }
+}
+
+int connect_to(const char *addr_txt, const char *port_txt,
+               std::function<void(int)> success,
+               std::function<void(const char *)> error) {
+
+  struct addrinfo hints;
+  std::fill((char *)&hints, (char *)&hints + sizeof(struct addrinfo), 0);
+  hints.ai_family = AF_UNSPEC;     ///< IPv4 or IPv6
+  hints.ai_socktype = SOCK_STREAM; ///< stream socket
+  hints.ai_flags = 0;              ///< no additional flags
+  hints.ai_protocol = 0;           ///< any protocol
+
+  struct addrinfo *addr_p;
+  if (int err = getaddrinfo(addr_txt, port_txt, &hints, &addr_p); err) {
+    error(gai_strerror(err));
+    return -1;
+  }
+  struct addrinfo *rp;
+  for (rp = addr_p; rp != NULL; rp = rp->ai_next) {
+    int connected_socket =
+        socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    if (connected_socket != -1) {
+      if (connect(connected_socket, rp->ai_addr, rp->ai_addrlen) != -1) {
+        freeaddrinfo(addr_p);
+        success(connected_socket);
+        return connected_socket;
+      }
+      ::close(connected_socket);
+    }
+  }
+  freeaddrinfo(addr_p);
+  error("could not open connection");
+  return -1;
 }
 
 } // namespace tp
