@@ -1,5 +1,7 @@
 # simple-cpp-sockets
 
+[![Build Status](https://travis-ci.org/pantadeusz/simple-cpp-sockets.svg?branch=master)](https://travis-ci.org/pantadeusz/simple-cpp-sockets)
+
 verry simple c++ sockets wrapper example
 
 ## Compilation
