@@ -81,13 +81,23 @@ int socket::_on_data(const std::vector<char> &recvbuff)
 
   cb = get_callback(socket_event::DATA);
 
+  std::cout << "recvbuff size: " << recvbuff.size() << std::endl;
   switch (cb.index())
   {
   case 1:
-    _handler_guard([&]() { std::get<1>(cb)(std::string(recvbuff.begin(), recvbuff.end())); });
+  std::cout << "gg" << std::endl;
+    _handler_guard([&]() { 
+      std::string s = "";
+      for (auto c : recvbuff) {
+        s = s + ((c>0)?c:' ');     }
+      std::get<1>(cb)(s); 
+//      std::get<1>(cb)(std::string(recvbuff.begin(), recvbuff.end())); 
+      });
+    std::cout << "recvbuff size: " << recvbuff.size() << " ok " << std::endl;
     return 0;
   case 3:
     _handler_guard([&]() { std::get<3>(cb)(recvbuff); });
+    std::cout << "recvbuff size: " << recvbuff.size() << " ok " << std::endl;
     return 0;
   default:
     _on_error("bad DATA callback");

@@ -28,8 +28,14 @@ install(FILES ${CMAKE_BINARY_DIR}/tepsoc.pc
 
 file(GLOB_RECURSE tests_SOURCES "${PROJECT_SOURCE_DIR}/tests/*_test.cpp" "${PROJECT_SOURCE_DIR}/tests/*/*_test.cpp")
 add_executable(tests ${tests_SOURCES} "tests/tests.cpp" )
-add_executable(sample_server "sample_server.cpp" )
+
+add_executable(sample_server "examples/sample_server.cpp" )
 target_link_libraries(sample_server tepsoc ${CMAKE_THREAD_LIBS_INIT}  Catch2::Catch2)
+
+add_executable(http_server "examples/http_server.cpp" )
+target_link_libraries(http_server tepsoc ${CMAKE_THREAD_LIBS_INIT}  Catch2::Catch2)
+
+
 target_link_libraries(tests tepsoc ${CMAKE_THREAD_LIBS_INIT}  Catch2::Catch2)
 target_link_libraries(tests ${CMAKE_THREAD_LIBS_INIT})
 include_directories("${PROJECT_SOURCE_DIR}/tests" "${PROJECT_SOURCE_DIR}/include")
