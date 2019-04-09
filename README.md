@@ -1,6 +1,6 @@
 # simple-cpp-sockets
 
-![Build Status](https://travis-ci.org/pantadeusz/simple-cpp-sockets.svg?branch=master)
+[![Build Status](https://travis-ci.org/pantadeusz/simple-cpp-sockets.svg?branch=master)](https://travis-ci.org/pantadeusz/simple-cpp-sockets)
 
 verry simple c++ sockets wrapper example
 
@@ -38,10 +38,11 @@ The API is very similar to the NodeJS Socket API. That was my inspiration.
       .listen(2212);
 ```
 
-### Compilation
+### How to compile with tepsoc? This is how
 
-You can quickly 
-
+```bash
+g++ -std=c++17 `pkg-config tepsoc --libs --cflags` sample_server.cpp
+```
 
 ## Contribution
 
