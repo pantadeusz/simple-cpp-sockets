@@ -4,19 +4,19 @@
 
 verry simple c++ sockets wrapper example
 
-## Compilation
+## Compilation of the library
 
 ```bash
 cmake -Bbuild -H.
 cmake --build build
+cmake --build build --target package
+sudo dpkg -i build/*.deb
 ```
 
-Examples can be compiled in this way:
+Examples can be compiled in this way (after library is installed):
 
 ```bash
-export LD_LIBRARY_PATH=./build
-g++ client.cpp -Lbuild -lsimplecppsockets -Iinclude -pthread -o client
-g++ server.cpp -Lbuild -lsimplecppsockets -Iinclude -pthread -o server
+g++ -std=c++17 `pkg-config tepsoc --libs --cflags` sample_server.cpp
 ```
 
 ## Example server
@@ -37,6 +37,11 @@ The API is very similar to the NodeJS Socket API. That was my inspiration.
          })
       .listen(2212);
 ```
+
+### Compilation
+
+You can quickly 
+
 
 ## Contribution
 
