@@ -81,7 +81,6 @@ int socket::_on_data(const std::vector<char> &recvbuff)
 
   cb = get_callback(socket_event::DATA);
 
-  std::cout << "recvbuff size: " << recvbuff.size() << std::endl;
   switch (cb.index())
   {
   case 1:
@@ -468,7 +467,7 @@ server &server::listen(unsigned int port_, char const *server_name)
     std::map<int, std::thread> _connection_handling_threads;
     std::list<int>
         _connection_handling_threads_finished; // list of finished threads
-
+    int delay_btw_connectoins = 1;
     // std::list<socket *> connected_sockets;
     while (listening_sockets.size())
     {
@@ -489,11 +488,13 @@ server &server::listen(unsigned int port_, char const *server_name)
           }
           else
           {
+            delay_btw_connectoins = 1;
             // socket was closed...
           }
         }
         else
         {
+          delay_btw_connectoins = 1;
           ls.push_back(sockfd);
           char host[NI_MAXHOST], service[NI_MAXSERV];
           getnameinfo((struct sockaddr *)&peer_addr, peer_addr_len, host,
@@ -519,7 +520,9 @@ server &server::listen(unsigned int port_, char const *server_name)
         }
       }
       listening_sockets = ls;
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      std::this_thread::sleep_for(std::chrono::milliseconds(delay_btw_connectoins));
+      delay_btw_connectoins = delay_btw_connectoins+1;
+      if (delay_btw_connectoins > 500) delay_btw_connectoins = 400;
       {
         std::lock_guard<std::mutex> lock(_connection_handling_mutex);
         for (auto &e : _connection_handling_threads_finished)
