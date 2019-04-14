@@ -23,8 +23,6 @@ SOFTWARE.
 
  * */
 
-
-
 #include <tepsoc.hpp>
 
 #include <stdexcept>
@@ -43,13 +41,10 @@ SOFTWARE.
 #include <string.h>
 #include <unistd.h>
 
-namespace tp
-{
-namespace net
-{
+namespace tp {
+namespace net {
 
-void socket::_on_connect()
-{
+void socket::_on_connect() {
   tp::net::socket_event_callback_f cb;
   int cb_count = 0;
   _callback_guard([&]() {
@@ -58,10 +53,8 @@ void socket::_on_connect()
       cb = _callbacks.at(socket_event::CONNECT);
   });
 
-  if (cb_count)
-  {
-    switch (cb.index())
-    {
+  if (cb_count) {
+    switch (cb.index()) {
     case 0:
       _handler_guard([&]() { std::get<0>(cb)(); });
       break;
@@ -75,23 +68,22 @@ void socket::_on_connect()
   _handle_incoming_data();
 }
 
-int socket::_on_data(const std::vector<char> &recvbuff)
-{
+int socket::_on_data(const std::vector<char> &recvbuff) {
   tp::net::socket_event_callback_f cb;
 
   cb = get_callback(socket_event::DATA);
 
-  switch (cb.index())
-  {
+  switch (cb.index()) {
   case 1:
-  std::cout << "gg" << std::endl;
-    _handler_guard([&]() { 
+    std::cout << "gg" << std::endl;
+    _handler_guard([&]() {
       std::string s = "";
       for (auto c : recvbuff) {
-        s = s + ((c>0)?c:' ');     }
-      std::get<1>(cb)(s); 
-//      std::get<1>(cb)(std::string(recvbuff.begin(), recvbuff.end())); 
-      });
+        s = s + ((c > 0) ? c : ' ');
+      }
+      std::get<1>(cb)(s);
+      //      std::get<1>(cb)(std::string(recvbuff.begin(), recvbuff.end()));
+    });
     std::cout << "recvbuff size: " << recvbuff.size() << " ok " << std::endl;
     return 0;
   case 3:
@@ -103,13 +95,11 @@ int socket::_on_data(const std::vector<char> &recvbuff)
     return -1;
   }
 }
-void socket::_on_error(const std::string err)
-{
+void socket::_on_error(const std::string err) {
   tp::net::socket_event_callback_f cb;
 
   cb = get_callback(socket_event::ERROR);
-  switch (cb.index())
-  {
+  switch (cb.index()) {
   case 0:
     _handler_guard([&]() { std::get<0>(cb)(); });
     return;
@@ -117,49 +107,42 @@ void socket::_on_error(const std::string err)
     _handler_guard([&]() { std::get<1>(cb)(err); });
     return;
   default:
-    _on_error(std::string("socket::_on_error:: Error handler bad:") + std::to_string(cb.index()) + "; err:" + err);
+    _on_error(std::string("socket::_on_error:: Error handler bad:") +
+              std::to_string(cb.index()) + "; err:" + err);
     return;
   }
 }
-void socket::_on_end()
-{
+void socket::_on_end() {
   tp::net::socket_event_callback_f cb;
   cb = get_callback(socket_event::END);
   if (cb.index() == 0)
     _handler_guard([&]() { std::get<0>(cb)(); });
 }
 
-void socket::_handle_incoming_data()
-{
+void socket::_handle_incoming_data() {
   int ret = 0;
   std::vector<char> recvbuff(4096);
   std::list<std::vector<char>> backlog;
   // MSG_DONTWAIT
-  while (true)
-  {
+  while (true) {
     ret = ::recv(connected_socket, recvbuff.data(), recvbuff.size(), 0);
     if (ret == 0)
       break;
-    if (ret == -1)
-    {
-      if (!((errno == EAGAIN) || (errno == EWOULDBLOCK)))
-      {
+    if (ret == -1) {
+      if (!((errno == EAGAIN) || (errno == EWOULDBLOCK))) {
         break;
       }
     }
-    if (ret > 0)
-    {
+    if (ret > 0) {
       recvbuff.resize(ret);
       backlog.push_back(recvbuff);
       recvbuff.resize(4096);
     }
-    while ((backlog.size() > 0) && (_on_data(backlog.front()) == 0))
-    {
+    while ((backlog.size() > 0) && (_on_data(backlog.front()) == 0)) {
       backlog.pop_front();
     }
   }
-  if (ret != 0)
-  {
+  if (ret != 0) {
     tp::net::socket_event_callback_f cb;
     cb = get_callback(socket_event::ERROR);
     _handler_guard([&]() { std::get<1>(cb)("connection broken"); });
@@ -170,41 +153,32 @@ void socket::_handle_incoming_data()
   _active_connection = false;
 }
 
-socket &socket::on(const socket_event evnt, socket_event_callback_f f)
-{
+socket &socket::on(const socket_event evnt, socket_event_callback_f f) {
   _callback_guard([&]() { _callbacks[evnt] = f; });
   return *this;
 }
 
-template <class T>
-socket &socket_write(socket &sckt, const T &data_)
-{
+template <class T> socket &socket_write(socket &sckt, const T &data_) {
   std::vector<char> data(data_.begin(), data_.end());
-  while (data.size() > 0)
-  {
+  while (data.size() > 0) {
     auto s = ::send(sckt.connected_socket, data.data(), data.size(), 0);
     data.erase(data.begin(), data.begin() + std::min((int)s, (int)data.size()));
   }
   return sckt;
 }
 
-socket &socket::write(const std::string data_)
-{
+socket &socket::write(const std::string data_) {
   return socket_write(*this, data_);
 }
-socket &socket::write(const std::vector<char> data_)
-{
+socket &socket::write(const std::vector<char> data_) {
   return socket_write(*this, data_);
 }
-socket &socket::write(const std::list<char> data_)
-{
+socket &socket::write(const std::list<char> data_) {
   return socket_write(*this, data_);
 }
 
-socket &socket::end(std::string data)
-{
-  while (data.size() > 0)
-  {
+socket &socket::end(std::string data) {
+  while (data.size() > 0) {
     auto s = ::send(connected_socket, data.data(), data.size(), 0);
     data = data.substr(s, data.size());
   }
@@ -212,16 +186,14 @@ socket &socket::end(std::string data)
   return *this;
 }
 
-socket &socket::wrap(int connected_socket_)
-{
+socket &socket::wrap(int connected_socket_) {
   this->connected_socket = connected_socket_;
   _active_connection = true;
   _on_connect();
   return *this;
 }
 
-socket &socket::connect(unsigned int port_, char const *addr_c)
-{
+socket &socket::connect(unsigned int port_, char const *addr_c) {
   if (connected_socket >= 0)
     throw std::invalid_argument("socket already connected");
   std::string addrr(addr_c);
@@ -237,22 +209,18 @@ socket &socket::connect(unsigned int port_, char const *addr_c)
     struct addrinfo *addr_p;
     if (int err =
             getaddrinfo(addr_, std::to_string(port_).c_str(), &hints, &addr_p);
-        err)
-    {
+        err) {
       throw std::invalid_argument(gai_strerror(err));
     }
     struct addrinfo *rp;
     std::shared_ptr<struct addrinfo> addr_sp(
         addr_p, [](struct addrinfo *addr_p) { freeaddrinfo(addr_p); });
 
-    for (rp = addr_p; rp != NULL; rp = rp->ai_next)
-    {
+    for (rp = addr_p; rp != NULL; rp = rp->ai_next) {
       connected_socket =
           ::socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-      if (connected_socket != -1)
-      {
-        if (::connect(connected_socket, rp->ai_addr, rp->ai_addrlen) != -1)
-        {
+      if (connected_socket != -1) {
+        if (::connect(connected_socket, rp->ai_addr, rp->ai_addrlen) != -1) {
           _active_connection = true;
           _on_connect();
           return;
@@ -269,8 +237,7 @@ socket &socket::connect(unsigned int port_, char const *addr_c)
   return *this;
 }
 
-socket::socket()
-{
+socket::socket() {
   static auto signal_ready = ::signal(SIGPIPE, SIG_IGN);
   // if (signal_ready == nullptr) throw std::runtime_error("could not setup
   // signal");
@@ -283,8 +250,7 @@ socket::socket()
   _active_connection = false;
 }
 
-socket::~socket()
-{
+socket::~socket() {
   // std::lock_guard<std::mutex> lock(_in_handler_mutex);
   //::close(connected_socket);
   if (_recv_fut.valid())
@@ -297,13 +263,11 @@ socket::~socket()
 
 ////////////////////// SERVER //////////////////////////////////////////
 
-void server::_on_error(const std::string &err)
-{
+void server::_on_error(const std::string &err) {
   tp::net::socket_event_callback_f errcb;
 
   _callback_guard([&]() { errcb = _callbacks.at(socket_event::ERROR); });
-  switch (errcb.index())
-  {
+  switch (errcb.index()) {
   case 0:
     std::get<0>(errcb)();
     ;
@@ -314,14 +278,12 @@ void server::_on_error(const std::string &err)
   }
 }
 
-void server::_on_listen(const unsigned int port_, const std::string addr_)
-{
+void server::_on_listen(const unsigned int port_, const std::string addr_) {
   tp::net::socket_event_callback_f cb;
 
   cb = get_callback(LISTENING);
 
-  switch (cb.index())
-  {
+  switch (cb.index()) {
   case 0:
     std::get<0>(cb)();
     break;
@@ -333,15 +295,11 @@ void server::_on_listen(const unsigned int port_, const std::string addr_)
   }
 }
 
-void server::_on_connect(socket &connected_socket_)
-{
+void server::_on_connect(socket &connected_socket_) {
   tp::net::socket_event_callback_f cb;
 
-  _callback_guard([&]() {
-    cb = _callbacks.at(CONNECTION);
-  });
-  switch (cb.index())
-  {
+  _callback_guard([&]() { cb = _callbacks.at(CONNECTION); });
+  switch (cb.index()) {
   case 2:
     std::get<2>(cb)(connected_socket_);
     break;
@@ -350,21 +308,18 @@ void server::_on_connect(socket &connected_socket_)
   }
 }
 
-server &server::on(socket_event evnt, socket_event_callback_f callback_)
-{
+server &server::on(socket_event evnt, socket_event_callback_f callback_) {
   std::lock_guard<std::mutex> lock(_callbacks_mutex);
   _callbacks[evnt] = callback_;
   return *this;
 }
 
-void server::_close()
-{
+void server::_close() {
   for (auto s : listening_sockets)
     ::close(s);
 }
 
-server::server(std::function<void(tp::net::socket &s)> on_connection_)
-{
+server::server(std::function<void(tp::net::socket &s)> on_connection_) {
   _callbacks[LISTENING] = []() {};
   _callbacks[ERROR] = [](std::string err) {
     std::cerr << "server::ERROR: " << err << std::endl;
@@ -372,10 +327,8 @@ server::server(std::function<void(tp::net::socket &s)> on_connection_)
   _callbacks[CONNECTION] = on_connection_; //[](socket &cs) {};
 }
 
-server &server::listen(unsigned int port_, char const *server_name)
-{
-  if (listening_sockets.size())
-  {
+server &server::listen(unsigned int port_, char const *server_name) {
+  if (listening_sockets.size()) {
     _on_error("server already listening.");
     return *this;
   }
@@ -399,43 +352,34 @@ server &server::listen(unsigned int port_, char const *server_name)
   map<int, string> server_names;
 
   struct addrinfo *result, *rp;
-  if (int s = getaddrinfo(server_name, port_name, &hints, &result); s != 0)
-  {
+  if (int s = getaddrinfo(server_name, port_name, &hints, &result); s != 0) {
     throw invalid_argument(gai_strerror(s));
   }
   std::shared_ptr<struct addrinfo> addrinfo_ptr(
       result, [](auto *p) { freeaddrinfo(p); });
 
-  for (rp = result; rp != NULL; rp = rp->ai_next)
-  {
+  for (rp = result; rp != NULL; rp = rp->ai_next) {
     listening_socket =
         ::socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-    if (listening_socket != -1)
-    {
+    if (listening_socket != -1) {
       if (int yes = 1; setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR,
-                                  &yes, sizeof(yes)) == -1)
-      {
+                                  &yes, sizeof(yes)) == -1) {
         // throw invalid_argument("setsockopt( ... ) error");
         _on_error("could not setsockopt"); // continue with error
       }
-      if (::bind(listening_socket, rp->ai_addr, rp->ai_addrlen) == 0)
-      {
-        if (::listen(listening_socket, max_queue) == -1)
-        {
+      if (::bind(listening_socket, rp->ai_addr, rp->ai_addrlen) == 0) {
+        if (::listen(listening_socket, max_queue) == -1) {
           ::close(listening_socket);
           _on_error("listen error after bind of address");
-        }
-        else
-        {
+        } else {
           listening_sockets.push_back(listening_socket);
           char host[NI_MAXHOST], service[NI_MAXSERV];
-          getnameinfo((struct sockaddr *)rp->ai_addr, rp->ai_addrlen, host, NI_MAXHOST,
-                      service, NI_MAXSERV, NI_NUMERICSERV);
-          server_names[listening_socket] = host; // std::string(rp->ai_canonname);
+          getnameinfo((struct sockaddr *)rp->ai_addr, rp->ai_addrlen, host,
+                      NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV);
+          server_names[listening_socket] =
+              host; // std::string(rp->ai_canonname);
         }
-      }
-      else
-      {
+      } else {
         ::close(listening_socket);
       }
     }
@@ -443,22 +387,17 @@ server &server::listen(unsigned int port_, char const *server_name)
 
   auto lsc = listening_sockets;
   listening_sockets.clear();
-  for (auto sockfd : lsc)
-  {
+  for (auto sockfd : lsc) {
     int flags = fcntl(sockfd, F_GETFL, 0);
-    if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1)
-    {
+    if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
       ::close(sockfd);
       _on_error(strerror(errno));
-    }
-    else
-    {
+    } else {
       listening_sockets.push_back(sockfd);
       _on_listen(port_, server_names[sockfd]);
     }
   }
-  if (listening_sockets.size() == 0)
-  {
+  if (listening_sockets.size() == 0) {
     _on_error("there are no valid listening sockets");
     return *this;
   }
@@ -469,31 +408,23 @@ server &server::listen(unsigned int port_, char const *server_name)
         _connection_handling_threads_finished; // list of finished threads
     int delay_btw_connectoins = 1;
     // std::list<socket *> connected_sockets;
-    while (listening_sockets.size())
-    {
+    while (listening_sockets.size()) {
       // std::cout << "waiting connection ..." << std::endl;
       std::vector<int> ls;
-      for (auto sockfd : listening_sockets)
-      {
+      for (auto sockfd : listening_sockets) {
         struct sockaddr_storage peer_addr;
         socklen_t peer_addr_len = sizeof(struct sockaddr_storage);
         int connected_socket;
         if ((connected_socket = ::accept(sockfd, (struct sockaddr *)&peer_addr,
-                                         &peer_addr_len)) < 0)
-        {
-          if (errno == EWOULDBLOCK)
-          {
+                                         &peer_addr_len)) < 0) {
+          if (errno == EWOULDBLOCK) {
             // artificial delay between connections
             ls.push_back(sockfd);
-          }
-          else
-          {
+          } else {
             delay_btw_connectoins = 1;
             // socket was closed...
           }
-        }
-        else
-        {
+        } else {
           delay_btw_connectoins = 1;
           ls.push_back(sockfd);
           char host[NI_MAXHOST], service[NI_MAXSERV];
@@ -520,13 +451,16 @@ server &server::listen(unsigned int port_, char const *server_name)
         }
       }
       listening_sockets = ls;
-      std::this_thread::sleep_for(std::chrono::milliseconds(delay_btw_connectoins));
-      delay_btw_connectoins = delay_btw_connectoins+1;
-      if (delay_btw_connectoins > 500) delay_btw_connectoins = 400;
+      if (delay_btw_connectoins > 1000) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      } else {
+        delay_btw_connectoins = delay_btw_connectoins + 1;
+      }
+      if (delay_btw_connectoins > 500)
+        delay_btw_connectoins = 400;
       {
         std::lock_guard<std::mutex> lock(_connection_handling_mutex);
-        for (auto &e : _connection_handling_threads_finished)
-        {
+        for (auto &e : _connection_handling_threads_finished) {
           _connection_handling_threads[e].join();
           _connection_handling_threads.erase(e);
         }
