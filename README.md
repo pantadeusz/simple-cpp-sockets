@@ -1,6 +1,6 @@
 # simple-cpp-sockets
 
-[![Build Status](https://travis-ci.org/pantadeusz/simple-cpp-sockets.svg?branch=master)](https://travis-ci.org/pantadeusz/simple-cpp-sockets)
+[![Build Status](https://travis-ci.org/pantadeusz/tepsoc.svg?branch=master)](https://travis-ci.org/pantadeusz/tepsoc)
 
 verry simple c++ sockets wrapper example
 
