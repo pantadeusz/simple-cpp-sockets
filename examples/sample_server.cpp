@@ -15,25 +15,29 @@
 #include <mutex>
 #include <thread>
 
-int main() {
+int main()
+{
   using namespace tp::net;
+  using namespace std;
   bool continue_serving = true;
-  tp::net::server srv([&](tp::net::socket &s) {
-    s.on(DATA, [&s, &continue_serving](std::string str) {
-      std::cout << "<<" << str << std::endl;
-      if (str.substr(0, 3) == "end") {
+  server srv([&](socket &s) {
+    s.on(DATA, [&s, &continue_serving](string str) {
+      cout << "<<" << str << endl;
+      if (str.substr(0, 3) == "end")
+      {
         s.end("goodbye");
         continue_serving = false;
-      } else
-        s.write(std::string(">>") + str);
+      }
+      else
+        s.write(string(">>") + str);
     });
   });
   srv.on(LISTENING,
-         [](int port, std::string addr) {
-           std::cout << "listening: " << port << " on addr " << addr
-                     << std::endl;
+         [](int port, string addr) {
+           cout << "listening: " << port << " on addr " << addr
+                << endl;
          })
       .listen(2212);
   while (continue_serving)
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    this_thread::sleep_for(chrono::milliseconds(500));
 }
