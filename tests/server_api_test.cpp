@@ -94,9 +94,10 @@ TEST_CASE("create simple server", "[server]") {
   SECTION("we should be able to accept connection and send data") {
 
     std::string result = "";
-    tp::net::server srv([&](tp::net::socket &s) {
-      s.write("hi from server");
-      s.end();
+    tp::net::server srv;
+    srv.on(CONNECTION,[&](tp::net::socket_p s) {
+      s->write("hi from server");
+      s->end();
     });
     srv.on(LISTENING, [&]() {});
     srv.listen(7755);

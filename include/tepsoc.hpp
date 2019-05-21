@@ -52,7 +52,9 @@ enum socket_event {
 using socket_event_callback_f = std::variant<
     std::function<void()>, std::function<void(std::string s)>,
     std::function<void(socket &)>, std::function<void(std::vector<char> v)>,
-    std::function<void(const unsigned int port_, const std::string addr_)>>;
+    std::function<void(const unsigned int port_, const std::string addr_)>,
+    std::function<void(std::shared_ptr<socket>)>
+    >;
 
 class socket {
   std::mutex _callbacks_mutex;
@@ -96,6 +98,8 @@ public:
    * consecutively DATA events
    * */
   socket &wrap(int s);
+
+  int get_wrapped_socket() {return connected_socket; }
   /**
    * sets callback for event
    * */
@@ -143,6 +147,8 @@ public:
   // socket& operator=(socket const&) = delete;
   template <class T> friend socket &socket_write(socket &sckt, const T &data_);
 };
+using socket_p = std::shared_ptr<socket>;
+
 
 auto b = [](socket &) -> void {};
 
@@ -150,6 +156,7 @@ class server {
 protected:
   std::map<socket_event, socket_event_callback_f> _callbacks;
   std::mutex _callbacks_mutex;
+  std::mutex _connection_handling_mutex;
 
   inline void _callback_guard(std::function<void()> f) {
     std::lock_guard<std::mutex> lock(_callbacks_mutex);
@@ -171,13 +178,17 @@ protected:
   // std::optional<std::future<void>> accepting_fut;
   std::future<void> accepting_fut;
 
-  void _on_connect(socket &connected_socket_);
+  std::map<int, socket_p> _connected_sockets;
+
+
+  void _on_connect(socket_p connected_socket_);
   void _on_listen(const unsigned int port_, const std::string addr_);
   void _on_error(const std::string &err);
 
   void _close();
 
 public:
+  server &get_connections(std::function<void(std::string, int)>callback_fun);
   /**
    * register callbacks
    * */
@@ -198,6 +209,8 @@ public:
    * */
   virtual ~server() { _close(); };
 };
+
+using server_p = std::shared_ptr<server>;
 
 } // namespace net
 } // namespace tp

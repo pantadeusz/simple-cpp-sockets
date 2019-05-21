@@ -75,7 +75,6 @@ int socket::_on_data(const std::vector<char> &recvbuff) {
 
   switch (cb.index()) {
   case 1:
-    std::cout << "gg" << std::endl;
     _handler_guard([&]() {
       std::string s = "";
       for (auto c : recvbuff) {
@@ -178,8 +177,14 @@ socket &socket::write(const std::list<char> data_) {
 }
 
 socket &socket::end(std::string data) {
+
   while (data.size() > 0) {
+    std::cout << "data(" << connected_socket << "): " << data << std::endl;
     auto s = ::send(connected_socket, data.data(), data.size(), 0);
+    if (s <= 0) {
+      std::cout << "s = " << s << std::endl;
+      break;
+    }
     data = data.substr(s, data.size());
   }
   ::shutdown(connected_socket, SHUT_WR);
@@ -295,13 +300,16 @@ void server::_on_listen(const unsigned int port_, const std::string addr_) {
   }
 }
 
-void server::_on_connect(socket &connected_socket_) {
+void server::_on_connect(socket_p connected_socket_) {
   tp::net::socket_event_callback_f cb;
 
   _callback_guard([&]() { cb = _callbacks.at(CONNECTION); });
   switch (cb.index()) {
   case 2:
-    std::get<2>(cb)(connected_socket_);
+    std::get<2>(cb)(*connected_socket_);
+    break;
+  case 5:
+    std::get<5>(cb)(connected_socket_);
     break;
   default:
     _on_error("bad CONNECTION callback index " + std::to_string(cb.index()));
@@ -315,6 +323,14 @@ server &server::on(socket_event evnt, socket_event_callback_f callback_) {
 }
 
 void server::_close() {
+  while (true) {
+    {
+      std::lock_guard<std::mutex> lock(_connection_handling_mutex);
+      if (_connected_sockets.size() == 0)
+        break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  };
   for (auto s : listening_sockets)
     ::close(s);
 }
@@ -402,10 +418,6 @@ server &server::listen(unsigned int port_, char const *server_name) {
     return *this;
   }
   accepting_fut = std::async(std::launch::async, [this]() {
-    std::mutex _connection_handling_mutex;
-    std::map<int, std::thread> _connection_handling_threads;
-    std::list<int>
-        _connection_handling_threads_finished; // list of finished threads
     int delay_btw_connectoins = 1;
     // std::list<socket *> connected_sockets;
     while (listening_sockets.size()) {
@@ -433,21 +445,35 @@ server &server::listen(unsigned int port_, char const *server_name) {
 
           std::string host_str = host;
           std::string service_str = service;
-          _connection_handling_threads[connected_socket] =
-              std::thread([this, connected_socket, host_str, service_str,
-                           &_connection_handling_threads_finished,
-                           &_connection_handling_mutex]() {
-                socket connected_socket_obj;
-                // std::cout << "on connection .." << std::endl;
-                connected_socket_obj.on(CONNECT,
-                                        [this, &connected_socket_obj]() {
-                                          _on_connect(connected_socket_obj);
-                                        });
-                connected_socket_obj.wrap(connected_socket);
-                std::lock_guard<std::mutex> lock(_connection_handling_mutex);
-                _connection_handling_threads_finished.push_back(
-                    connected_socket);
+          std::thread([this, connected_socket, host_str, service_str]() {
+            {
+              socket *s = new socket();
+              socket_p connected_socket_obj(s, [connected_socket](auto s) {
+                std::cout << "delete s " << connected_socket << std::endl;
+                delete s;
               });
+              {
+                std::lock_guard<std::mutex> lock(_connection_handling_mutex);
+                _connected_sockets[connected_socket] = connected_socket_obj;
+              }
+              std::cout << "on connection .." << std::endl;
+              connected_socket_obj->on(CONNECT, [this, connected_socket_obj]() {
+                _on_connect(connected_socket_obj);
+              });
+              std::cout << "on connection .. wrap " << connected_socket
+                        << std::endl;
+              connected_socket_obj->wrap(connected_socket);
+              std::cout << "on connection ..       lock" << std::endl;
+              std::lock_guard<std::mutex> lock(_connection_handling_mutex);
+              std::cout << "on connection ..              finished"
+                        << std::endl;
+            }
+            {
+              std::lock_guard<std::mutex> lock(_connection_handling_mutex);
+              _connected_sockets.erase(connected_socket);
+            }
+          })
+              .detach();
         }
       }
       listening_sockets = ls;
@@ -458,17 +484,7 @@ server &server::listen(unsigned int port_, char const *server_name) {
       }
       if (delay_btw_connectoins > 500)
         delay_btw_connectoins = 400;
-      {
-        std::lock_guard<std::mutex> lock(_connection_handling_mutex);
-        for (auto &e : _connection_handling_threads_finished) {
-          _connection_handling_threads[e].join();
-          _connection_handling_threads.erase(e);
-        }
-        _connection_handling_threads_finished.clear();
-      }
     }
-    for (auto &t : _connection_handling_threads)
-      t.second.join();
   });
   return *this;
 }
