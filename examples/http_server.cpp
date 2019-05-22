@@ -57,8 +57,15 @@ public:
   void on_request_finished(tp::net::socket_p s, request_p req,response_p res) {
     if (mappings[req->method].size() > 0) {
 
+      // todo: pass next
       mappings[req->method].back().second(req,res);
-      s->end(res->val);
+      std::stringstream prepared_response;
+      prepared_response << "HTTP/1.1 200 OK\r\n";
+      prepared_response << "Date: Mon, 27 Jul 2009 12:28:53 GMT\r\n";
+      prepared_response << "Content-Type: text/html\r\n";
+      prepared_response << "\r\n";
+      prepared_response << res->val;
+      s->end(prepared_response.str());
     } else {
       s->end(std::string("HTTP/1.1 200 OK\r\n") +
              std::string("Date: Mon, 27 Jul 2009 12:28:53 GMT\r\n") +
